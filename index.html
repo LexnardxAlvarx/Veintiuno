@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>#21 • 4 meses</title>
+<style>
+  :root{--bg:#0b0b0b;--accent:#ff2d2d;--yellow:#FFD400;--card:#111}
+  html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#fff;background:linear-gradient(180deg,#000 0%, #111 100%);-webkit-font-smoothing:antialiased}
+  .wrap{padding:18px;max-width:520px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{font-size:20px;margin:0;color:var(--yellow)}
+  p.sub{margin:0;color:#ddd;font-size:13px}
+  .hint-note{font-size:13px;color:#ccc;margin-top:8px;text-align:center}
+  .board{margin:18px auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:92vw;max-width:420px}
+  .piece{background:linear-gradient(180deg,#1a1a1a,#111);border-radius:10px;padding:0;aspect-ratio:1 / 1;display:flex;align-items:center;justify-content:center;font-size:28px;user-select:none;-webkit-user-select:none;box-shadow:0 6px 14px rgba(0,0,0,0.6);border:2px solid rgba(255,255,255,0.03);transition:transform .18s, box-shadow .18s, border-color .18s;overflow:hidden;min-height:80px}
+  .piece.small{font-size:18px}
+  .piece.selected{box-shadow:0 10px 28px rgba(255,200,0,0.28);transform:scale(1.03)}
+  .piece.correct{border-color:#4caf50;box-shadow:0 10px 28px rgba(76,175,80,0.18)}
+  .tile{width:100%;height:100%;display:block;position:relative}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--yellow);font-size:14px}
+  .avatar{width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:8px;background:linear-gradient(180deg,#fff6d6,#ffecb3);color:#111;font-weight:700}
+  .avatar img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+  .controls{display:flex;gap:8px;justify-content:center;margin-top:12px}
+  button.btn{background:var(--yellow);color:#111;border:0;padding:10px 14px;border-radius:10px;font-weight:600}
+  .status{margin-top:12px;text-align:center;color:#eee}
+  .modal{position:fixed;left:0;right:0;top:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:50}
+  .card{background:#111;padding:18px;border-radius:12px;max-width:92%;color:#fff}
+  .close{background:transparent;border:0;color:#fff;font-size:18px;float:right}
+  @media(min-width:700px){.board{max-width:520px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>#21</h1>
+      <p class="sub">21 de septiembre · Felices 4 meses mi vida</p>
+    </div>
+    <div>
+      <button id="shuffle" class="btn">Mezclar</button>
+    </div>
+  </header>
+
+  <div class="board" id="board" aria-label="Rompecabezas 3 por 3">
+    <!-- pieces created by JS -->
+  </div>
+  <div class="hint-note">Toca una pieza para seleccionar y toca otra para intercambiar. Arma el 21 mi amor.</div>
+
+  <div class="controls">
+    <button id="reset" class="btn">Reiniciar</button>
+  </div>
+
+  <div class="status" id="status">Piezas colocadas: 0 / 9</div>
+</div>
+
+<!-- modal for phrases -->
+<div class="modal" id="modal">
+  <div class="card" id="card">
+    <button class="close" id="close">✕</button>
+    <div id="card-content"></div>
+  </div>
+</div>
+
+<script>
+/* INSTRUCCIONES RÁPIDAS:
+   - Coloca tus 9 imágenes que forman el número 21 dentro de la carpeta `img/` y nómbralas tile1.png ... tile9.png
+   - Coloca las imágenes de personajes dentro de `img/` (nombres como tanjiro.png, nezuko.png, etc.) y actualiza el arreglo `characters` if needed.
+   - En cada object characters[i] reemplaza 'image' por la ruta (ej: 'img/tanjiro.png') y 'color' por el color de fondo que quieras (ej: '#ffdd77').
+*/
+
+const tiles = [
+  'img/tile1.png',
+  'img/tile2.png',
+  'img/tile3.png',
+  'img/tile4.png',
+  'img/tile5.png',
+  'img/tile6.png',
+  'img/tile7.png',
+  'img/tile8.png',
+  'img/tile9.png'
+];
+
+const characters = [
+  {name: 'Tanjiro', phrase: 'Como mi respiración, mi amor por ti nunca falla; contigo enfrento cualquier demonio.', image: 'img/tanjiro.jpg', color: '#AB1C00'},
+  {name: 'Nezuko', phrase: 'Te protejo aunque todo sea oscuro; en mi caja llevo tu calma.', image: 'img/nezuko.jpg', color: '#BA00AE'},
+  {name: 'Zenitsu', phrase: 'Aunque tiemble de miedo, por ti despierto la valentía más pura.', image: 'img/zenitsu.jpg', color: '#9E8F00'},
+  {name: 'Inosuke', phrase: 'Salgo salvaje al mundo, pero contigo aprendo ternura.', image: 'img/inozuke.jpg', color: '#001491'},
+  {name: 'Akaza', phrase: 'Puedo nacer de la lucha y la furia, pero mi mayor victoria es cuidarte; mi fuerza existe para protegerte y abrazarte, nunca para herirte.', image: 'img/akasa.jpg', color: '#A10000'},
+  {name: 'Tengen', phrase: 'Soy ruido, brillo y espectáculo, pero a tu lado mi orgullo se vuelve ternura: te adoro con la intensidad de un tambor que no deja de sonar.', image: 'img/tengen.jpg', color: '#005678'},
+  {name: 'Giyu', phrase: 'En silencio y firme, siempre estaré junto a ti.', image: 'img/giyu.jpg', color: '#0B0057'},
+  {name: 'Rengoku', phrase: 'Mi pasión arde por ti como una llama que nunca se apaga.', image: 'img/rengoku.jpg', color: '#C46D00'},
+  {name: 'Genya', phrase: 'Soy áspero y directo, pero mi amor por ti es sincero y feroz; contigo aprendo a bajar la guardia y a ser mejor cada día.', image: 'img/genya.jpg', color: '#340066'}
+];
+
+const boardEl = document.getElementById('board');
+const statusEl = document.getElementById('status');
+const modal = document.getElementById('modal');
+const cardContent = document.getElementById('card-content');
+const closeBtn = document.getElementById('close');
+
+let sequence = [1,2,3,4,5,6,7,8,9];
+let selectedIndex = null;
+let solved = false;
+
+function createPieceElement(val, idx){
+  const btn = document.createElement('button');
+  btn.className = 'piece';
+  btn.dataset.pos = idx;
+  btn.dataset.val = val;
+  btn.id = 'p' + val;
+  return btn;
+}
+
+function renderPieces(){
+  boardEl.innerHTML = '';
+  sequence.forEach((val, idx) =>{
+    const btn = createPieceElement(val, idx);
+
+    // mark as correct if in right place
+    if(val === idx+1){
+      btn.classList.add('correct');
+    } else {
+      btn.classList.remove('correct');
+    }
+
+    if(!solved){
+      // show tile image that forms el 21
+      const tileDiv = document.createElement('div');
+      tileDiv.className = 'tile';
+      const img = document.createElement('img');
+      img.src = tiles[val-1]; // tile images (user provides img/tile1..9.png)
+      img.alt = 'tile'+val;
+      const fallback = document.createElement('div');
+      fallback.className = 'fallback';
+      fallback.innerHTML = '<div style="text-align:center">🌻<br/><small>#'+String(idx+1).padStart(2,'0')+'</small></div>';
+      img.onload = ()=>{ fallback.style.display='none'; };
+      img.onerror = ()=>{ img.style.display='none'; fallback.style.display='flex'; };
+      tileDiv.appendChild(img);
+      tileDiv.appendChild(fallback);
+      btn.appendChild(tileDiv);
+    } else {
+      // transform into avatar or image (user will add images in the paths above)
+      const char = characters[val-1];
+      const av = document.createElement('div');
+      av.className = 'avatar';
+      if(char.image && !char.image.includes('AQUI_VA_IMAGEN')){
+        const img = document.createElement('img');
+        img.src = char.image; // image path e.g. img/tanjiro.png
+        img.alt = char.name;
+        img.onerror = ()=>{ img.style.display='none'; av.innerHTML = `<div style="text-align:center">${char.name}<div style="font-size:11px;color:#666">(agrega img/${char.name.toLowerCase()}.png)</div></div>`; };
+        av.appendChild(img);
+      } else {
+        av.innerHTML = `<div style="text-align:center"><div style="font-size:14px">${char.name}</div><div style="font-size:11px;color:#666;margin-top:6px">(AQUI: agrega imagen)</div></div>`;
+      }
+      btn.appendChild(av);
+    }
+
+    btn.addEventListener('click', ()=>onPieceClick(idx));
+    if(selectedIndex === idx) btn.classList.add('selected');
+    boardEl.appendChild(btn);
+  });
+  updateStatus();
+}
+
+function onPieceClick(idx){
+  if(solved){
+    const val = sequence[idx];
+    const char = characters[val-1];
+    showPhrase(char.name, char.phrase, char.color);
+    return;
+  }
+  if(selectedIndex === null){
+    selectedIndex = idx;
+    renderPieces();
+    return;
+  }
+  if(selectedIndex === idx){
+    selectedIndex = null;
+    renderPieces();
+    return;
+  }
+  // swap
+  [sequence[selectedIndex], sequence[idx]] = [sequence[idx], sequence[selectedIndex]];
+  selectedIndex = null;
+  renderPieces();
+  checkSolved();
+}
+
+function shuffle(){
+  // Fisher-Yates
+  for(let i = sequence.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [sequence[i], sequence[j]] = [sequence[j], sequence[i]];
+  }
+  // ensure not accidentally solved
+  if(isSolvedArray(sequence)){
+    [sequence[0], sequence[1]] = [sequence[1], sequence[0]];
+  }
+  solved = false;
+  selectedIndex = null;
+  renderPieces();
+}
+
+function isSolvedArray(arr){
+  for(let i=0;i<arr.length;i++) if(arr[i] !== i+1) return false;
+  return true;
+}
+
+function checkSolved(){
+  if(isSolvedArray(sequence)){
+    solved = true;
+    // transform pieces after small delay
+    setTimeout(()=>{ renderPieces(); },320);
+  }
+  updateStatus();
+}
+
+function updateStatus(){
+  const correct = sequence.reduce((acc,val,idx)=> acc + (val===idx+1?1:0),0);
+  statusEl.textContent = `Piezas colocadas: ${correct} / 9`;
+}
+
+function showPhrase(name, phrase, color){
+  const card = document.getElementById('card');
+  card.style.background = '#111';
+  if(color && !String(color).includes('AQUI_VA_COLOR')){
+    card.style.background = color; // custom color
+  }
+  cardContent.innerHTML = `<h3 style="margin:0 0 8px 0;color:var(--yellow)">${name}</h3><p style="margin:0">${phrase}</p>`;
+  modal.style.display='flex';
+}
+
+closeBtn.addEventListener('click', ()=>{modal.style.display='none'; document.getElementById('card').style.background='#111';});
+modal.addEventListener('click', (e)=>{ if(e.target===modal) {modal.style.display='none'; document.getElementById('card').style.background='#111'} });
+
+document.getElementById('shuffle').addEventListener('click', shuffle);
+document.getElementById('reset').addEventListener('click', ()=>{ sequence=[1,2,3,4,5,6,7,8,9]; shuffle(); });
+
+// initial shuffle
+shuffle();
+
+</script>
+</body>
+</html>
+
